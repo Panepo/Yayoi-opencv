@@ -1,0 +1,1 @@
+python mo_tf.py --input_model yayoi_srcnn_935_2x.pb --input_shape [1,256,256,1] --mean_values [0] --scale_values [256]
