@@ -17,11 +17,10 @@ typedef enum appState
 int main(int argc, char * argv[]) try
 {
 	appState state = APPSTATE_NORMAL;
-	std::chrono::high_resolution_clock::time_point tmStart, tmEnd;
 	std::chrono::high_resolution_clock::time_point time1, time2;
 	std::chrono::duration<double> diff;
 	
-	cv::dnn::Net net = cv::dnn::readNetFromTensorflow("./yayoi_srcnn_935_2x.pb");
+	cv::dnn::Net net = cv::dnn::readNetFromTensorflow("yayoi_srcnn_935_2x.pb");
 	net.setPreferableBackend(cv::dnn::DNN_BACKEND_OPENCV);
 	net.setPreferableTarget(cv::dnn::DNN_TARGET_CPU);
 
@@ -33,8 +32,8 @@ int main(int argc, char * argv[]) try
 	int imgHeight = img.size().height;
 	
 	cv::Mat imgCV;
-	//cv::resize(img, imgCV, cv::Size(imgWidth / 2, imgHeight / 2), 0, 0, cv::INTER_CUBIC);
-	cv::resize(img, imgCV, cv::Size(imgWidth * 2, imgHeight * 2), 0, 0, cv::INTER_CUBIC);
+	cv::resize(img, imgCV, cv::Size(imgWidth / 2, imgHeight / 2), 0, 0, cv::INTER_CUBIC);
+	cv::resize(img, imgCV, cv::Size(imgWidth, imgHeight), 0, 0, cv::INTER_CUBIC);
 
 	cv::namedWindow("opencv", cv::WINDOW_AUTOSIZE);
 	cv::imshow("opencv", imgCV);
@@ -44,7 +43,7 @@ int main(int argc, char * argv[]) try
 	cv::cvtColor(imgCV, imgSR, cv::COLOR_BGR2YCrCb);
 	cv::split(imgSR, imgSRsp);
 
-	cv::Mat inputBlob = cv::dnn::blobFromImage(imgSRsp[0], 1.0f / 255, cv::Size(imgWidth, imgHeight), cv::Scalar(), false);
+	cv::Mat inputBlob = cv::dnn::blobFromImage(imgSRsp[0], 1.0f / 255, cv::Size(imgWidth, imgHeight), 0, false, false);
 	net.setInput(inputBlob);
 
 	time1 = std::chrono::high_resolution_clock::now();
@@ -54,26 +53,27 @@ int main(int argc, char * argv[]) try
 
 	int outWidth = output.size().width;
 	int outHeight = output.size().height;
-	std::cout << outWidth << std::endl;
-	std::cout << outHeight << std::endl;
+
+	std::cout << outWidth << " " << outHeight << std::endl;
 	
 	for (int i = 0; i < outWidth; i += 1) {
 		for (int j = 0; j < outHeight; j += 1) {
-			output.at<double>(i, j) = output.at<double>(i, j) * 255;
+			output.at<char>(i, j) = output.at<char>(i, j);
 		}
 	}
+	
 	
 	for (int i = 0; i < outWidth; i += 1) {
 		for (int j = 0; j < outHeight; j += 1) {
 			int value = output.at<double>(i, j);
-			if (value > 255) output.at<double>(i, j) = (double)255;
-			if (value < 0) output.at<double>(i, j) = (double)0;
+			if (value > 255) output.at<char>(i, j) = 255;
+			if (value < 0) output.at<char>(i, j) = 0;
 		}
 	}
 
 	for (int i = 0; i < outWidth; i += 1) {
 		for (int j = 0; j < outHeight; j += 1) {
-			imgSRsp[0].at<double>(i + 6, j + 6) = output.at<double>(i, j);
+			imgSRsp[0].at<char>(i, j) = output.at<char>(i, j);
 		}
 	}
 
@@ -81,11 +81,12 @@ int main(int argc, char * argv[]) try
 	channels.push_back(imgSRsp[0]);
 	channels.push_back(imgSRsp[1]);
 	channels.push_back(imgSRsp[2]);
-	cv::merge(channels, imgSR);
-	cv::cvtColor(imgSR, imgSR, cv::COLOR_YCrCb2BGR);
+	cv::Mat imgOutput;
+	cv::merge(channels, imgOutput);
+	cv::cvtColor(imgOutput, imgOutput, cv::COLOR_YCrCb2BGR);
 
 	cv::namedWindow("srcnn", cv::WINDOW_AUTOSIZE);
-	cv::imshow("srcnn", imgSR);
+	cv::imshow("srcnn", imgOutput);
 	
 	while (state) {
 		char key = cv::waitKey(10);
